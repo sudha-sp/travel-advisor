@@ -1,20 +1,36 @@
-import { View, Text, SafeAreaView, Image, ScrollView, TouchableOpacity } from "react-native";
-import React, { useLayoutEffect, useState } from "react";
+import { View, Text, SafeAreaView, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import React, { useLayoutEffect, useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { Attractions, Avatar, Hotels, Restaurants } from "../assets";
+import { Attractions, Avatar, Hotels, Restaurants, NotFound } from "../assets";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import MenuContainer from "../components/MenuContainer";
 import { FontAwesome } from '@expo/vector-icons';
 import ItemCarDontainer from "../components/ItemCarDontainer";
+import { getPlacesData } from "../api";
 
 const Discover = () => {
   const navigation = useNavigation();
   const [type, setType] = useState("restaurants");
+  const [isLoading, setIsLoading] = useState(false);
+  const [mainData, setMainData] = useState([]);
+  
+
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
   }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    getPlacesData().then(data => {
+      setMainData(data);
+      setInterval(()=>{
+        setIsLoading(false)
+      },2000)
+    })
+  }, [])
+  
   return (
     <SafeAreaView className="flex-1 bg-white relative">
       <View className="flex-row items-center justify-between px-8">
@@ -36,12 +52,7 @@ const Discover = () => {
           placeholder="Search"
           fetchDetails={true}
           onPress={(data, details = null) => {
-            // 'details' is provided when fetchDetails = true
             console.log(details?.geometry?.viewport);
-            setBl_lat(details?.geometry?.viewport?.southwest?.lat);
-            setBl_lng(details?.geometry?.viewport?.southwest?.lng);
-            setTr_lat(details?.geometry?.viewport?.northeast?.lat);
-            setTr_lng(details?.geometry?.viewport?.northeast?.lng);
           }}
           query={{
             key: "YOUR_API_KEY",
@@ -51,6 +62,9 @@ const Discover = () => {
       </View>
 
       {/* Menu container */}
+      {isLoading ? <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#00ff00" />
+      </View> :
       <ScrollView>
         <View className="flex-row items-center justify-between px-8 mt-8">
           <MenuContainer
@@ -88,13 +102,32 @@ const Discover = () => {
             </View>
 
             <View className="px-4 mt-8 flex-row items-center justify-evenly flex-wrap">
-                <ItemCarDontainer key={"101"} imageSrc={""} title="Something" location="Doha" />
-                <ItemCarDontainer key={"102"} imageSrc={""} title="Sample" location="Quatar" />
+                {mainData?.length > 0 ? <>
+                 {mainData?.map((data, i) => (
+                  <ItemCarDontainer 
+                    key={i} 
+                    imageSrc={
+                      data?.photo?.images?.medium?.url ?
+                      data?.photo?.images?.medium?.url : 
+                      "https://cdn.pixabay.com/photo/2018/02/01/20/43/shopping-3124078__340.jpg"
+                    } 
+                    title={data?.name}
+                    location={data?.location_string}
+                    data={data} />
+                 ))}
+                </> : <>
+                  <View className="w-full h-[300px] items-center space-y-8 justify-center">
+                    <Image source={NotFound} className="w-32 h-32 object-cover " />
+                    <Text className="text-2xl text-[#428288] font-semibold">Oops No Data Found!!</Text>
+                  </View>
+                </>}
             </View>
         </View>
 
 
       </ScrollView>
+       }
+      
     </SafeAreaView>
   );
 };
